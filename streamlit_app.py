@@ -1,40 +1,38 @@
-import altair as alt
-import numpy as np
-import pandas as pd
 import streamlit as st
+from langchain import OpenAI
+from langchain.docstore.document import Document
+from langchain.text_splitter import CharacterTextSplitter
+from langchain.chains.summarize import load_summarize_chain
 
-"""
-# Welcome to Streamlit!
+def generate_response(txt):
+    # Instantiate the LLM model
+    llm = OpenAI(temperature=0, openai_api_key=openai_api_key)
+    # Split text
+    text_splitter = CharacterTextSplitter()
+    texts = text_splitter.split_text(txt)
+    # Create multiple documents
+    docs = [Document(page_content=t) for t in texts]
+    # Text summarization
+    chain = load_summarize_chain(llm, chain_type='map_reduce')
+    return chain.run(docs)
 
-Edit `/streamlit_app.py` to customize this app to your heart's desire :heart:.
-If you have any questions, checkout our [documentation](https://docs.streamlit.io) and [community
-forums](https://discuss.streamlit.io).
+# Page title
+st.set_page_config(page_title='🦜🔗 Text Summarization App')
+st.title('🦜🔗 Text Summarization App')
 
-In the meantime, below is an example of what you can do with just a few lines of code:
-"""
+# Text input
+txt_input = st.text_area('Enter your text', '', height=200)
 
-num_points = st.slider("Number of points in spiral", 1, 10000, 1100)
-num_turns = st.slider("Number of turns in spiral", 1, 300, 31)
+# Form to accept user's text input for summarization
+result = []
+with st.form('summarize_form', clear_on_submit=True):
+    openai_api_key = st.text_input('OpenAI API Key', type = 'password', disabled=not txt_input)
+    submitted = st.form_submit_button('Submit')
+    if submitted and openai_api_key.startswith('sk-'):
+        with st.spinner('Calculating...'):
+            response = generate_response(txt_input)
+            result.append(response)
+            del openai_api_key
 
-indices = np.linspace(0, 1, num_points)
-theta = 2 * np.pi * num_turns * indices
-radius = indices
-
-x = radius * np.cos(theta)
-y = radius * np.sin(theta)
-
-df = pd.DataFrame({
-    "x": x,
-    "y": y,
-    "idx": indices,
-    "rand": np.random.randn(num_points),
-})
-
-st.altair_chart(alt.Chart(df, height=700, width=700)
-    .mark_point(filled=True)
-    .encode(
-        x=alt.X("x", axis=None),
-        y=alt.Y("y", axis=None),
-        color=alt.Color("idx", legend=None, scale=alt.Scale()),
-        size=alt.Size("rand", legend=None, scale=alt.Scale(range=[1, 150])),
-    ))
+if len(result):
+    st.info(response)
